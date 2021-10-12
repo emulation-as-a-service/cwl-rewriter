@@ -73,21 +73,29 @@ def rewrite(cwl_file):
 
     # TODO add flag to skip command line tool if no dockerPull
     if isinstance(cwl_obj, Workflow):
+
+        # This is necessary as the CWL parser appends an additional "/" in front of windows paths...
+        # pathlib does not seem to work properly here
+        cut_path_hack = 7 if os.name == "posix" else 8
+
         if cwl_obj.steps:
             print("WORKFLOW DETECTED ")
 
             # FIXME check if [8:] works on unix as well
             # TODO only rewrite if dockerPull flag in command line tool
             for step in cwl_obj.steps:
-                print("Type step:", type(step))
-                print("Step:", step.run, step.run[8:])
+                print("Type step:", type(step.run))
+
+                print("Cutting from:", cut_path_hack)
+
+                print("Step:", step.run, step.run[cut_path_hack:])
                 print(step.id)
-                is_rewritten = rewrite(Path(step.run[8:]))
+                is_rewritten = rewrite(Path(step.run[cut_path_hack:]))
 
                 if not is_rewritten:
                     continue
 
-                head, tail = os.path.split(Path(step.run[8:]))  # use this for the actual file?
+                head, tail = os.path.split(Path(step.run[cut_path_hack:]))  # use this for the actual file?
                 rewritten_name = head + "/wrapped_" + tail
                 rewritten_name = rewritten_name.replace("\\", "/")
 
@@ -98,7 +106,7 @@ def rewrite(cwl_file):
 
             # cwl_obj.id = cwl_obj.id[8:]
             print("ID::", cwl_obj.id)
-            head_wf, tail_wf = os.path.split(cwl_file.as_uri()[8:])  # use this for the actual file?
+            head_wf, tail_wf = os.path.split(cwl_file.as_uri()[cut_path_hack:])  # use this for the actual file?
             uri_ = head_wf + "/wrapped_workflow_" + tail_wf
             print("Writing file to:", uri_)
             with open(uri_, "w+") as f:
