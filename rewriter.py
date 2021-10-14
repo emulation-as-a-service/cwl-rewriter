@@ -21,11 +21,11 @@ from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 import containerImport
 
-SHOULD_UPLOAD = False
-
-
 def convert_tool_to_yaml(tool):
     tool_dict = tool.save(top=True)
+
+    # FIXME manually overwriting cwl_obj.id messes up everything else, so right now I just delete it
+    tool_dict.pop("id")
 
     io = StringIO()
 
@@ -39,7 +39,7 @@ def convert_tool_to_yaml(tool):
     return io.getvalue()
 
 
-def rewrite(cwl_file):
+def rewrite(cwl_file, should_upload = False):
     # Read in the cwl file from a yaml
     with open(cwl_file, "r") as cwl_h:
         yaml_obj = yaml.main.round_trip_load(cwl_h, preserve_quotes=True)
@@ -163,7 +163,7 @@ def rewrite(cwl_file):
 
     env_id = "50e4bdfa-0762-430e-abae-7b73c4b50da4"
 
-    if SHOULD_UPLOAD:
+    if should_upload:
         env_id = containerImport.import_image(docker_pull)
 
     output_folder = docker_output_directory if docker_output_directory else "/output"
@@ -195,6 +195,8 @@ def rewrite(cwl_file):
 
     cwl_obj.baseCommand.insert(0, "python3")
     cwl_obj.baseCommand.insert(1, "/app/wrapper.py")
+
+
 
     config_json_set = False
     if not cwl_obj.requirements:
@@ -270,10 +272,8 @@ def tar_rewritten():
 
 
 def rewrite_from_repo(git_url, should_upload):
-    global SHOULD_UPLOAD  # TODO remove global hack
-    SHOULD_UPLOAD = should_upload
     file_to_rewrite = clone_repo(git_url)
-    rewrite(Path(file_to_rewrite))
+    rewrite(Path(file_to_rewrite), should_upload)
     tar_rewritten()
 
 
@@ -289,7 +289,8 @@ if __name__ == '__main__':
 
     should_upload = False  # TODO default to true when digest check works
     if len(args) == 3:
-        should_upload = args[2]
+        if args[2] in ["True", "true", "-u", "--upload"]:
+            should_upload = True
 
     rewrite_from_repo(args[1], should_upload)
 
