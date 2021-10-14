@@ -90,7 +90,7 @@ def rewrite(cwl_file, should_upload = False):
 
                 print("Step:", step.run, step.run[cut_path_hack:])
                 print(step.id)
-                is_rewritten = rewrite(Path(step.run[cut_path_hack:]))
+                is_rewritten = rewrite(Path(step.run[cut_path_hack:]), should_upload)
 
                 if not is_rewritten:
                     continue
@@ -291,7 +291,6 @@ if __name__ == '__main__':
     if len(args) == 3:
         if args[2] in ["True", "true", "-u", "--upload"]:
             should_upload = True
-
     rewrite_from_repo(args[1], should_upload)
 
 # TODO:
