@@ -64,6 +64,7 @@ def rewrite(cwl_file, should_upload=False):
         sys.exit(1)
 
     # Import CWL Object
+    cwl_file = cwl_file.resolve()
 
     print(cwl_file.as_uri())
 
