@@ -3,6 +3,7 @@ import json
 import os.path
 import shutil
 import tarfile
+import argparse
 import time
 from pathlib import Path, PurePath
 from threading import Thread
@@ -20,6 +21,7 @@ from ruamel.yaml import StringIO
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 import containerImport
+
 
 def convert_tool_to_yaml(tool):
     tool_dict = tool.save(top=True)
@@ -39,7 +41,7 @@ def convert_tool_to_yaml(tool):
     return io.getvalue()
 
 
-def rewrite(cwl_file, should_upload = False):
+def rewrite(cwl_file, should_upload=False):
     # Read in the cwl file from a yaml
     with open(cwl_file, "r") as cwl_h:
         yaml_obj = yaml.main.round_trip_load(cwl_h, preserve_quotes=True)
@@ -95,7 +97,8 @@ def rewrite(cwl_file, should_upload = False):
                 if not is_rewritten:
                     continue
 
-                head, tail = os.path.split(Path(step.run[cut_path_hack:]))  # use this for the actual file?
+                head, tail = os.path.split(
+                    Path(step.run[cut_path_hack:]))  # use this for the actual file?
                 rewritten_name = head + "/wrapped_" + tail
                 rewritten_name = rewritten_name.replace("\\", "/")
 
@@ -106,7 +109,8 @@ def rewrite(cwl_file, should_upload = False):
 
             # cwl_obj.id = cwl_obj.id[8:]
             print("ID::", cwl_obj.id)
-            head_wf, tail_wf = os.path.split(cwl_file.as_uri()[cut_path_hack:])  # use this for the actual file?
+            head_wf, tail_wf = os.path.split(
+                cwl_file.as_uri()[cut_path_hack:])  # use this for the actual file?
             uri_ = head_wf + "/wrapped_workflow_" + tail_wf
             print("Writing file to:", uri_)
             with open(uri_, "w+") as f:
@@ -196,8 +200,6 @@ def rewrite(cwl_file, should_upload = False):
     cwl_obj.baseCommand.insert(0, "python3")
     cwl_obj.baseCommand.insert(1, "/app/wrapper.py")
 
-
-
     config_json_set = False
     if not cwl_obj.requirements:
         cwl_obj.requirements = []
@@ -266,32 +268,41 @@ def clone_repo(git_url):
     return file_to_rewrite
 
 
-def tar_rewritten():
-    with tarfile.open("rewritten.tgz", "w:gz") as tar:
+def tar_rewritten(output):
+    with tarfile.open(output, "w:gz") as tar:
         tar.add("git_repo")
 
 
-def rewrite_from_repo(git_url, should_upload):
+def rewrite_from_repo(git_url, should_upload, output):
     file_to_rewrite = clone_repo(git_url)
     rewrite(Path(file_to_rewrite), should_upload)
-    tar_rewritten()
+    tar_rewritten(output)
 
 
 # rewrite_from_repo("https://github.com/Aeolic/example-workflow/blob/main/example_workflow.cwl")
 
 if __name__ == '__main__':
-    args = sys.argv
-    print(args)
 
-    if len(args) < 2:
-        print("Rewriter needs to be called with [GithubURL to CWL file], Optional[should_upload]")
-        exit(1)
+    my_parser = argparse.ArgumentParser(
+        description="CWL Rewriter. Rewrites CWL Workflows to use the EaaS-Framework instead of docker containers.")
+    my_parser.add_argument("url_or_path", nargs="?")
+    my_parser.add_argument("--repo", dest="repo", action="store_true")
+    my_parser.add_argument("--no-upload", dest="upload", action="store_false",
+                           help="Will use a placeholder ID instead of uploading the container and using the return id."
+                                " !!! CWL will only work after manually putting in the proper IDs, when this option is used!!!")
+    my_parser.add_argument("-o", dest="output",
+                           help="The path where the rewritten repository is stored. (Only works with --repo)",
+                           default="rewritten.tgz")
+    my_parser.set_defaults(repo=False)
+    my_parser.set_defaults(upload=True)
 
-    should_upload = False  # TODO default to true when digest check works
-    if len(args) == 3:
-        if args[2] in ["True", "true", "-u", "--upload"]:
-            should_upload = True
-    rewrite_from_repo(args[1], should_upload)
+    args = my_parser.parse_args()
+    print("ARGS:", args)
+
+    if args.repo:
+        rewrite_from_repo(args.url_or_path, args.upload, args.output)
+    else:
+        rewrite(Path(args.url_or_path), args.upload)
 
 # TODO:
 # runtime.X
