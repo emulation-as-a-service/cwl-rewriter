@@ -32,7 +32,7 @@ def convert_tool_to_yaml(tool):
     yaml.round_trip_dump(tool_dict, io, default_style=None, default_flow_style=False, indent=2,
                          block_seq_indent=0, line_break=0, explicit_start=False)
 
-    # print(io.getvalue())
+    #print(io.getvalue())
 
     return io.getvalue()
 
@@ -69,6 +69,7 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
 
                 # skip CWL files without DockerRequirement
                 if not is_rewritten:
+                    step.run = os.path.relpath(step.run[cut_path_hack:], os.path.dirname(cwl_file)).replace("\\", "/")
                     continue
 
                 head, tail = os.path.split(
@@ -246,7 +247,7 @@ def rewrite_from_repo(git_url, should_upload, output, runtime_id):
     rewrite(Path(file_to_rewrite), should_upload, runtime_id)
     tar_rewritten(output)
 
-
+# TODO runtime is not registered properly (probably because digest existed and I deleted images)
 if __name__ == '__main__':
 
     my_parser = argparse.ArgumentParser(
