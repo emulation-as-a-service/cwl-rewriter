@@ -74,12 +74,11 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
                 head, tail = os.path.split(
                     Path(step.run[cut_path_hack:]))  # use this for the actual file?
                 rewritten_name = head + "/wrapped_" + tail
-                rewritten_name = rewritten_name.replace("\\", "/")
 
                 # print("Rewritten name:", rewritten_name)
                 # print("CWL FILE:", cwl_file)
                 # print("REL:", os.path.relpath(rewritten_name, os.path.dirname(cwl_file)))
-                step.run = os.path.relpath(rewritten_name, os.path.dirname(cwl_file))
+                step.run = os.path.relpath(rewritten_name, os.path.dirname(cwl_file)).replace("\\", "/")
 
             head_wf, tail_wf = os.path.split(
                 cwl_file.as_uri()[cut_path_hack:])  # use this for the actual file?
