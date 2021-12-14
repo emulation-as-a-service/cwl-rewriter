@@ -1,22 +1,18 @@
-# Imports
 import json
 import os.path
 import shutil
 import tarfile
 import argparse
-import time
-from pathlib import Path, PurePath
-from threading import Thread
-
-import requests
-from cwl_utils.parser_v1_0 import CommandInputArraySchema, Dirent, InitialWorkDirRequirement, \
-    DockerRequirement, CommandLineTool, Workflow, CommandLineBinding, CommandOutputParameter, File, \
-    CommandOutputBinding
-from git import Repo
-from ruamel import yaml
 import sys
 
-# File Input - This is the only thing you will need to adjust or take in as an input to your function:
+from pathlib import Path
+
+from cwl_utils.parser import load_document_by_yaml
+from cwl_utils.parser.cwl_v1_0 import InitialWorkDirRequirement, EnvVarRequirement, Dirent, \
+    Workflow, DockerRequirement
+from git import Repo
+from ruamel import yaml
+
 from ruamel.yaml import StringIO
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
@@ -45,36 +41,18 @@ def rewrite(cwl_file, should_upload=False):
     # Read in the cwl file from a yaml
     with open(cwl_file, "r") as cwl_h:
         yaml_obj = yaml.main.round_trip_load(cwl_h, preserve_quotes=True)
-        # str_obj = cwl_file.read_text()
 
     # Check CWLVersion
     if 'cwlVersion' not in list(yaml_obj.keys()):
         print("Error - could not get the cwlVersion")
         sys.exit(1)
 
-    # Import parser based on CWL Version
-    if yaml_obj['cwlVersion'] == 'v1.0':
-        from cwl_utils import parser_v1_0 as parser
-    elif yaml_obj['cwlVersion'] == 'v1.1':
-        from cwl_utils import parser_v1_1 as parser
-    elif yaml_obj['cwlVersion'] == 'v1.2':
-        from cwl_utils import parser_v1_2 as parser
-    else:
-        print("Version error. Did not recognise {} as a CWL version".format(yaml_obj["CWLVersion"]))
-        sys.exit(1)
-
     # Import CWL Object
     cwl_file = cwl_file.resolve()
+    cwl_obj = load_document_by_yaml(yaml_obj, cwl_file.as_uri())
 
-    print(cwl_file.as_uri())
+    # if the parsed object is a Workflow, rewrite all CommandLineTools that are part of it
 
-    cwl_obj = parser.load_document_by_yaml(yaml_obj, cwl_file.as_uri())
-
-    # cwl_obj = parser.load_document_by_string(str_obj, "") #Path("").as_uri())# cwl_file.as_uri())
-
-    # print("List of object attributes:\n{}".format("\n".join(map(str, dir(cwl_obj)))))
-
-    # TODO add flag to skip command line tool if no dockerPull
     if isinstance(cwl_obj, Workflow):
 
         # This is necessary as the CWL parser appends an additional "/" in front of windows paths...
@@ -82,19 +60,13 @@ def rewrite(cwl_file, should_upload=False):
         cut_path_hack = 7 if os.name == "posix" else 8
 
         if cwl_obj.steps:
-            print("WORKFLOW DETECTED ")
+            print("WORKFLOW DETECTED")
 
-            # FIXME check if [8:] works on unix as well
-            # TODO only rewrite if dockerPull flag in command line tool
             for step in cwl_obj.steps:
-                print("Type step:", type(step.run))
-
-                print("Cutting from:", cut_path_hack)
-
                 print("Step:", step.run, step.run[cut_path_hack:])
-                print(step.id)
                 is_rewritten = rewrite(Path(step.run[cut_path_hack:]), should_upload)
 
+                # skip CWL files without DockerRequirement
                 if not is_rewritten:
                     continue
 
@@ -103,29 +75,30 @@ def rewrite(cwl_file, should_upload=False):
                 rewritten_name = head + "/wrapped_" + tail
                 rewritten_name = rewritten_name.replace("\\", "/")
 
-                print("Rewritten name:", rewritten_name)
-                print("CWL FILE:", cwl_file)
-                print("REL:", os.path.relpath(rewritten_name, os.path.dirname(cwl_file)))
+                # print("Rewritten name:", rewritten_name)
+                # print("CWL FILE:", cwl_file)
+                # print("REL:", os.path.relpath(rewritten_name, os.path.dirname(cwl_file)))
                 step.run = os.path.relpath(rewritten_name, os.path.dirname(cwl_file))
 
-            # cwl_obj.id = cwl_obj.id[8:]
-            print("ID::", cwl_obj.id)
             head_wf, tail_wf = os.path.split(
                 cwl_file.as_uri()[cut_path_hack:])  # use this for the actual file?
             uri_ = head_wf + "/wrapped_workflow_" + tail_wf
-            print("Writing file to:", uri_)
+            print("Storing Rewritten CWL Workflow as:", uri_)
             with open(uri_, "w+") as f:
                 final = convert_tool_to_yaml(cwl_obj)
                 f.write(final)
-
             return
+
+    # --- CommandLineTool
+    # if this is reached, the CWL file is a CommandLineTool and will be rewritten accordingly
 
     docker_pull = None
     docker_output_directory = ""
     original_initial_workdir_req_listing = []
+    env_var_requirements = {}
 
+    # TODO General solution for all hints/Requirements
     if cwl_obj.hints:
-
         has_docker_hint = False
         for hint in cwl_obj.hints:
             if hint["class"] == "DockerRequirement":
@@ -135,7 +108,7 @@ def rewrite(cwl_file, should_upload=False):
                     docker_output_directory = hint["dockerOutputDirectory"]
             break
         if has_docker_hint:
-            cwl_obj.hints.remove(hint)
+            cwl_obj.hints.remove(hint)  # move DockerRequirement to Requirements
 
     if cwl_obj.requirements:
         docker_req_found = False
@@ -144,7 +117,7 @@ def rewrite(cwl_file, should_upload=False):
                 docker_req_found = True
                 if req.dockerPull:
                     docker_pull = req.dockerPull
-                    req.dockerPull = "aeolic/cwl-wrapper:2.7.9"
+                    req.dockerPull = "aeolic/cwl-wrapper:2.8.0"
                 if req.dockerOutputDirectory:
                     docker_output_directory = req.dockerOutputDirectory
                 req.dockerOutputDirectory = "/app/output"
@@ -152,21 +125,24 @@ def rewrite(cwl_file, should_upload=False):
             if type(req) == InitialWorkDirRequirement:
                 original_initial_workdir_req_listing.extend(req.listing)
 
-            # TODO other requirements + hints (interesting for prov doc)
+            if type(req) == EnvVarRequirement:
+                print("FOUND ENV VAR REQ:", type(req.envDef))
+                for env_var in req.envDef:
+                    print(env_var.envName, "=", env_var.envValue)
+                    env_var_requirements[env_var.envName] = env_var.envValue
+            # TODO other requirements + hints
 
         if not docker_req_found:
-            docker_req = DockerRequirement(dockerPull="aeolic/cwl-wrapper:2.7.9",
-                                           dockerOutputDirectory="/app/output")  # TODO remove duplicate
+            docker_req = DockerRequirement(dockerPull="aeolic/cwl-wrapper:2.8.0",
+                                           dockerOutputDirectory="/app/output")
             cwl_obj.requirements.append(docker_req)
 
-    # except Exception as e:
-    #     print("Something went wrong while reading DockerRequirement:", e)
-
     if not docker_pull:
-        print("CWL did not have dockerPull, returning")
+        print(cwl_file.as_uri(), "does not specify dockerPull, not rewriting...")
         return False
 
-    env_id = "50e4bdfa-0762-430e-abae-7b73c4b50da4"
+    # placeholder id if rewriter is launched with --no-upload
+    env_id = "PLACE_HOLDER_ID_NEEDS_TO_BE_SET_MANUALLY"
 
     if should_upload:
         env_id = containerImport.import_image(docker_pull)
@@ -179,21 +155,18 @@ def rewrite(cwl_file, should_upload=False):
         "initialWorkDirRequirements": [x.entryname for x in original_initial_workdir_req_listing]
     }
 
+    if env_var_requirements:
+        config_json["environmentVariables"] = env_var_requirements
+
     for inp in cwl_obj.inputs:
-        inp.id = inp.id.split("#")[1]  # to remove absolut paths
+        inp.id = inp.id.split("#")[1]  # to remove absolute paths
 
     for outp in cwl_obj.outputs:
-        outp.id = outp.id.split("#")[1]
-
-    # outpBinding = CommandOutputBinding(glob="*.log")
-    # log_output = CommandOutputParameter("logfile", type="File", outputBinding=outpBinding)
-    # cwl_obj.outputs.append(log_output)
+        outp.id = outp.id.split("#")[1]  # to remove absolute paths
 
     entry = json.dumps(config_json, indent=4, separators=(',', ': '))
 
-    new_workdir_req = [Dirent(entry, entryname="config.json")]  # TODO to list: []?
-
-    # TODO ADD WRAPPER AS BASE COMMAND
+    new_workdir_req = [Dirent(entry, entryname="config.json")]
 
     if not isinstance(cwl_obj.baseCommand, list):
         cwl_obj.baseCommand = [cwl_obj.baseCommand]
@@ -220,13 +193,8 @@ def rewrite(cwl_file, should_upload=False):
     print("----- OUTPUT: Writing file to:", rewritten_name)
     with open(rewritten_name, "w+") as f:
         final = convert_tool_to_yaml(cwl_obj)
-
-        # final = final.replace('"${var', '${var')
-        # final = final.replace('r}"', 'r}')
-
         f.write(final)
 
-    # TODO output in general (change backend!)
     # TODO when using runtime.outdir, wrapper output will be used instead of proper output path
 
     return True
@@ -280,8 +248,6 @@ def rewrite_from_repo(git_url, should_upload, output):
     tar_rewritten(output)
 
 
-# rewrite_from_repo("https://github.com/Aeolic/example-workflow/blob/main/example_workflow.cwl")
-
 if __name__ == '__main__':
 
     my_parser = argparse.ArgumentParser(
@@ -292,7 +258,7 @@ if __name__ == '__main__':
                            help="Will use a placeholder ID instead of uploading the container and using the return id."
                                 " !!! CWL will only work after manually putting in the proper IDs, when this option is used!!!")
     my_parser.add_argument("-o", dest="output",
-                           help="The path where the rewritten repository is stored. (Only works with --repo)",
+                           help="The path where the rewritten repository will be stored. (Only works with --repo)",
                            default="rewritten.tgz")
     my_parser.set_defaults(repo=False)
     my_parser.set_defaults(upload=True)
@@ -304,8 +270,3 @@ if __name__ == '__main__':
         rewrite_from_repo(args.url_or_path, args.upload, args.output)
     else:
         rewrite(Path(args.url_or_path), args.upload)
-
-# TODO:
-# runtime.X
-# env requirement
-# cleanup!

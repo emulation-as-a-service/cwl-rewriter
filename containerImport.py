@@ -20,6 +20,7 @@ def poll_until_done(task_id):
 
 
 def import_image(dockerPull):
+    print("Starting container Import for", dockerPull)
     if ":" in dockerPull:
         container, tag = dockerPull.split(":")
     else:
@@ -53,8 +54,7 @@ def import_image(dockerPull):
             "workingDir": meta.get("workingDir", "/"),
             "name": "CWL_auto_import_" + container + ":" + tag,
             "inputFolder": "/input",  # irrelevant, gets overwritten by execution anyway
-            "outputFolder": "/app/output",
-            # irrelevant, gets overwritten by execution anyway (TODO maybe set properly anyway)
+            "outputFolder": "/app/output",  # irrelevant, gets overwritten by execution anyway (TODO maybe set properly anyway)
             "imageType": "dockerhub",
             "title": "CWL_auto_import_" + container + ":" + tag,
             "description": '<p>Automatic import by CWL Rewriter </p>',
