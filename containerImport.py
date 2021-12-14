@@ -16,10 +16,10 @@ def poll_until_done(task_id):
             return as_json
         else:
             time.sleep(5)
-            print("Task", task_id, "is not finished yet.")
+            # print("Task", task_id, "is not finished yet.")
 
 
-def import_image(dockerPull):
+def import_image(dockerPull, runtime_id):
     print("Starting container Import for", dockerPull)
     if ":" in dockerPull:
         container, tag = dockerPull.split(":")
@@ -54,14 +54,14 @@ def import_image(dockerPull):
             "workingDir": meta.get("workingDir", "/"),
             "name": "CWL_auto_import_" + container + ":" + tag,
             "inputFolder": "/input",  # irrelevant, gets overwritten by execution anyway
-            "outputFolder": "/app/output",  # irrelevant, gets overwritten by execution anyway (TODO maybe set properly anyway)
+            "outputFolder": "/app/output",
+            # irrelevant, gets overwritten by execution anyway (TODO maybe set properly anyway)
             "imageType": "dockerhub",
             "title": "CWL_auto_import_" + container + ":" + tag,
             "description": '<p>Automatic import by CWL Rewriter </p>',
             # TODO use CWL as description?
             "author": "CWL Rewriter",  # TODO check CWL for author
-            "runtimeId": "de864855-47df-4a28-bd96-34b0088e8013",
-            # FIXME remove hardcoded runtime id!
+            "runtimeId": runtime_id,
             "serviceContainer": False,
             "enableNetwork": False,
             "archive": "default",
@@ -83,4 +83,4 @@ def import_image(dockerPull):
 
 
 if __name__ == '__main__':
-    import_image("frolvlad/alpine-bash:latest")
+    import_image("frolvlad/alpine-bash:latest", "ea52aafa-56e7-479d-b756-ba82a1328b2f")

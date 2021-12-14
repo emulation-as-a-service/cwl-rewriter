@@ -37,7 +37,7 @@ def convert_tool_to_yaml(tool):
     return io.getvalue()
 
 
-def rewrite(cwl_file, should_upload=False):
+def rewrite(cwl_file, should_upload=False, runtime_id=""):
     # Read in the cwl file from a yaml
     with open(cwl_file, "r") as cwl_h:
         yaml_obj = yaml.main.round_trip_load(cwl_h, preserve_quotes=True)
@@ -53,6 +53,7 @@ def rewrite(cwl_file, should_upload=False):
 
     # if the parsed object is a Workflow, rewrite all CommandLineTools that are part of it
 
+    #TODO when executed on windows, \ will be used thus rendering the workflow useless for linux
     if isinstance(cwl_obj, Workflow):
 
         # This is necessary as the CWL parser appends an additional "/" in front of windows paths...
@@ -60,7 +61,7 @@ def rewrite(cwl_file, should_upload=False):
         cut_path_hack = 7 if os.name == "posix" else 8
 
         if cwl_obj.steps:
-            print("WORKFLOW DETECTED")
+            print("Workflow detected for", cwl_file.as_uri())
 
             for step in cwl_obj.steps:
                 print("Step:", step.run, step.run[cut_path_hack:])
@@ -110,6 +111,7 @@ def rewrite(cwl_file, should_upload=False):
         if has_docker_hint:
             cwl_obj.hints.remove(hint)  # move DockerRequirement to Requirements
 
+    wrapper_docker_name = "aeolic/cwl-wrapper:3.0.0"
     if cwl_obj.requirements:
         docker_req_found = False
         for req in cwl_obj.requirements:
@@ -117,7 +119,7 @@ def rewrite(cwl_file, should_upload=False):
                 docker_req_found = True
                 if req.dockerPull:
                     docker_pull = req.dockerPull
-                    req.dockerPull = "aeolic/cwl-wrapper:2.8.0"
+                    req.dockerPull = wrapper_docker_name
                 if req.dockerOutputDirectory:
                     docker_output_directory = req.dockerOutputDirectory
                 req.dockerOutputDirectory = "/app/output"
@@ -126,14 +128,12 @@ def rewrite(cwl_file, should_upload=False):
                 original_initial_workdir_req_listing.extend(req.listing)
 
             if type(req) == EnvVarRequirement:
-                print("FOUND ENV VAR REQ:", type(req.envDef))
                 for env_var in req.envDef:
-                    print(env_var.envName, "=", env_var.envValue)
                     env_var_requirements[env_var.envName] = env_var.envValue
             # TODO other requirements + hints
 
         if not docker_req_found:
-            docker_req = DockerRequirement(dockerPull="aeolic/cwl-wrapper:2.8.0",
+            docker_req = DockerRequirement(dockerPull=wrapper_docker_name,
                                            dockerOutputDirectory="/app/output")
             cwl_obj.requirements.append(docker_req)
 
@@ -145,7 +145,7 @@ def rewrite(cwl_file, should_upload=False):
     env_id = "PLACE_HOLDER_ID_NEEDS_TO_BE_SET_MANUALLY"
 
     if should_upload:
-        env_id = containerImport.import_image(docker_pull)
+        env_id = containerImport.import_image(docker_pull, runtime_id)
 
     output_folder = docker_output_directory if docker_output_directory else "/output"
 
@@ -190,7 +190,7 @@ def rewrite(cwl_file, should_upload=False):
     head, tail = os.path.split(cwl_file)  # use this for the actual file?
     rewritten_name = head + "/wrapped_" + tail
 
-    print("----- OUTPUT: Writing file to:", rewritten_name)
+    print("Storing CommandLineTool at", rewritten_name)
     with open(rewritten_name, "w+") as f:
         final = convert_tool_to_yaml(cwl_obj)
         f.write(final)
@@ -242,9 +242,9 @@ def tar_rewritten(output):
         tar.add("git_repo")
 
 
-def rewrite_from_repo(git_url, should_upload, output):
+def rewrite_from_repo(git_url, should_upload, output, runtime_id):
     file_to_rewrite = clone_repo(git_url)
-    rewrite(Path(file_to_rewrite), should_upload)
+    rewrite(Path(file_to_rewrite), should_upload, runtime_id)
     tar_rewritten(output)
 
 
@@ -260,13 +260,20 @@ if __name__ == '__main__':
     my_parser.add_argument("-o", dest="output",
                            help="The path where the rewritten repository will be stored. (Only works with --repo)",
                            default="rewritten.tgz")
+    my_parser.add_argument("--runtime-id", dest="runtime_id",
+                           help="The UUID of the container runtime.", default=None)
     my_parser.set_defaults(repo=False)
     my_parser.set_defaults(upload=True)
 
     args = my_parser.parse_args()
-    print("ARGS:", args)
+    print("Rewriter called with:", args)
+
+    if args.upload:
+        if not args.runtime_id:
+            print("You need to supply a runtime ID unless using --no-upload.")
+            exit(1)
 
     if args.repo:
-        rewrite_from_repo(args.url_or_path, args.upload, args.output)
+        rewrite_from_repo(args.url_or_path, args.upload, args.output, args.runtime_id)
     else:
-        rewrite(Path(args.url_or_path), args.upload)
+        rewrite(Path(args.url_or_path), args.upload, args.runtime_id)
