@@ -111,7 +111,7 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
         if has_docker_hint:
             cwl_obj.hints.remove(hint)  # move DockerRequirement to Requirements
 
-    wrapper_docker_name = "aeolic/cwl-wrapper:3.0.0"
+    wrapper_docker_name = "registry.gitlab.com/emulation-as-a-service/experiments/cwl-wrapper:latest"
     if cwl_obj.requirements:
         docker_req_found = False
         for req in cwl_obj.requirements:
