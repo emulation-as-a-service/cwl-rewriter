@@ -1,8 +1,10 @@
 import time
 import requests
 
-EMIL_BASE_URL = "https://historic-builds.emulation.cloud/emil"
-
+#EMIL_BASE_URL = "https://historic-builds.emulation.cloud/emil"
+#EMIL_BASE_URL = "http://localhost:8080/emil"
+# EMIL_BASE_URL = "https://b651fad4-55ac-4126-86f4-0298c23e8eb0.test.emulation.cloud/emil"
+EMIL_BASE_URL = "https://a19b53c8-2990-43ef-8ccd-6353c370d056.test.emulation.cloud/emil"
 
 def poll_until_done(task_id):
     while True:
@@ -29,7 +31,8 @@ def import_image(dockerPull, runtime_id):
     print("Got container:", container, "tag:", tag)
     json_container_request = {"containerType": "dockerhub",
                               "urlString": container,
-                              "tag": tag}
+                              "tag": tag,
+                              "checkForExistingDigest": True}
 
     print("Sending request to build image with data:", json_container_request)
     task_response = requests.post(EMIL_BASE_URL + "/EmilContainerData/buildContainerImage",
@@ -44,6 +47,13 @@ def import_image(dockerPull, runtime_id):
 
     if response_obj:
         data = eval(response_obj)
+
+        # there already exists an environment with this container
+        if "id" in data.keys():
+            env_id = data["id"]
+            print("Container already imported! ENV ID:", env_id)
+            return env_id
+
         meta = data["metadata"]
 
         print("Evaluating if data was successful:", data)
@@ -83,4 +93,4 @@ def import_image(dockerPull, runtime_id):
 
 
 if __name__ == '__main__':
-    import_image("frolvlad/alpine-bash:latest", "ea52aafa-56e7-479d-b756-ba82a1328b2f")
+    import_image("frolvlad/alpine-bash:latest", "16f1b127-8436-4c74-9ae2-3582aaf0f042")

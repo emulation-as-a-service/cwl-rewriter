@@ -19,6 +19,7 @@ from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 import containerImport
 
 
+
 def convert_tool_to_yaml(tool):
     tool_dict = tool.save(top=True)
 
@@ -32,7 +33,7 @@ def convert_tool_to_yaml(tool):
     yaml.round_trip_dump(tool_dict, io, default_style=None, default_flow_style=False, indent=2,
                          block_seq_indent=0, line_break=0, explicit_start=False)
 
-    #print(io.getvalue())
+    # print(io.getvalue())
 
     return io.getvalue()
 
@@ -53,7 +54,7 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
 
     # if the parsed object is a Workflow, rewrite all CommandLineTools that are part of it
 
-    #TODO when executed on windows, \ will be used thus rendering the workflow useless for linux
+    # TODO when executed on windows, \ will be used thus rendering the workflow useless for linux
     if isinstance(cwl_obj, Workflow):
 
         # This is necessary as the CWL parser appends an additional "/" in front of windows paths...
@@ -69,7 +70,8 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
 
                 # skip CWL files without DockerRequirement
                 if not is_rewritten:
-                    step.run = os.path.relpath(step.run[cut_path_hack:], os.path.dirname(cwl_file)).replace("\\", "/")
+                    step.run = os.path.relpath(step.run[cut_path_hack:],
+                                               os.path.dirname(cwl_file)).replace("\\", "/")
                     continue
 
                 head, tail = os.path.split(
@@ -79,7 +81,8 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
                 # print("Rewritten name:", rewritten_name)
                 # print("CWL FILE:", cwl_file)
                 # print("REL:", os.path.relpath(rewritten_name, os.path.dirname(cwl_file)))
-                step.run = os.path.relpath(rewritten_name, os.path.dirname(cwl_file)).replace("\\", "/")
+                step.run = os.path.relpath(rewritten_name, os.path.dirname(cwl_file)).replace("\\",
+                                                                                              "/")
 
             head_wf, tail_wf = os.path.split(
                 cwl_file.as_uri()[cut_path_hack:])  # use this for the actual file?
@@ -124,6 +127,7 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
                     docker_output_directory = req.dockerOutputDirectory
                 req.dockerOutputDirectory = "/app/output"
 
+            # FIXME something goes wrong with inital workdir idents if there are 2 or more
             if type(req) == InitialWorkDirRequirement:
                 original_initial_workdir_req_listing.extend(req.listing)
 
@@ -147,13 +151,14 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
     if should_upload:
         env_id = containerImport.import_image(docker_pull, runtime_id)
 
-    output_folder = docker_output_directory if docker_output_directory else "/output"
-
     config_json = {
         "environmentId": env_id,
-        "outputFolder": output_folder,
-        "initialWorkDirRequirements": [x.entryname for x in original_initial_workdir_req_listing]
+        "initialWorkDirRequirements": [x.entryname for x in original_initial_workdir_req_listing],
+        "eaasUrl": containerImport.EMIL_BASE_URL
     }
+
+    if docker_output_directory:
+        config_json["outputFolder"] = docker_output_directory
 
     if env_var_requirements:
         config_json["environmentVariables"] = env_var_requirements
@@ -166,7 +171,7 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
 
     entry = json.dumps(config_json, indent=4, separators=(',', ': '))
 
-    new_workdir_req = [Dirent(entry, entryname="config.json")]
+    new_workdir_req = Dirent(entry, entryname="config.json")
 
     if not isinstance(cwl_obj.baseCommand, list):
         cwl_obj.baseCommand = [cwl_obj.baseCommand]
@@ -183,8 +188,7 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
             config_json_set = True
 
     if not config_json_set:
-        config_json_req = InitialWorkDirRequirement(new_workdir_req)
-
+        config_json_req = InitialWorkDirRequirement([new_workdir_req])
         cwl_obj.requirements.append(config_json_req)
 
     head, tail = os.path.split(cwl_file)  # use this for the actual file?
@@ -247,6 +251,7 @@ def rewrite_from_repo(git_url, should_upload, output, runtime_id):
     rewrite(Path(file_to_rewrite), should_upload, runtime_id)
     tar_rewritten(output)
 
+
 # TODO runtime is not registered properly (probably because digest existed and I deleted images)
 if __name__ == '__main__':
 
@@ -260,6 +265,7 @@ if __name__ == '__main__':
     my_parser.add_argument("-o", dest="output",
                            help="The path where the rewritten repository will be stored. (Only works with --repo)",
                            default="rewritten.tgz")
+    # FIXME runtime id is not set properly
     my_parser.add_argument("--runtime-id", dest="runtime_id",
                            help="The UUID of the container runtime.", default=None)
     my_parser.set_defaults(repo=False)
