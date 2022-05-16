@@ -1,6 +1,6 @@
 inputs:
   workflowPath:
-    description: Path to CWL workflow to preserve in EaaS 
+    description: Path to CWL workflow to preserve in EaaS
     required: true
   runtimeId:
     description: Container runtime ID in EaaS instance
@@ -10,10 +10,14 @@ runs:
   using: "composite"
   steps:
   - run: |
-      env
       pip install cwl-utils GitPython
       python "$GITHUB_ACTION_PATH"/rewriter.py --runtime-id "$runtimeId" "$workflowPath"
     shell: bash
     env:
       runtimeId: ${{inputs.runtimeId}}
       workflowPath: ${{inputs.workflowPath}}
+  - uses: actions/upload-artifact@v3
+    with:
+      name: Preserved CWL workflows for ${{inputs.workflowPath}}
+      path: |
+        **/wrapped_*.cwl
