@@ -2,6 +2,9 @@ inputs:
   workflowPath:
     description: Path to CWL workflow to preserve in EaaS
     required: true
+  eaasBackendUrl:
+     description: EaaS backend base URL (usually ends with "/emil")
+     required: true
   runtimeId:
     description: Container runtime ID in EaaS instance
     required: true
@@ -11,11 +14,12 @@ runs:
   steps:
   - run: |
       pip install cwl-utils GitPython
-      python "$GITHUB_ACTION_PATH"/rewriter.py --runtime-id "$runtimeId" "$workflowPath"
+      "$GITHUB_ACTION_PATH"/rewriter.py --runtime-id "$runtimeId" "$workflowPath"
     shell: bash
     env:
       runtimeId: ${{inputs.runtimeId}}
       workflowPath: ${{inputs.workflowPath}}
+      EMIL_BASE_URL: ${{inputs.eaasBackendUrl}}
   - uses: actions/upload-artifact@v3
     with:
       name: Preserved CWL workflows for ${{inputs.workflowPath}}
