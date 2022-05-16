@@ -1,0 +1,19 @@
+inputs:
+  workflowPath:
+    description: Path to CWL workflow to preserve in EaaS 
+    required: true
+  runtimeId:
+    description: Container runtime ID in EaaS instance
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+  - run: |
+      env
+      pip install cwl-utils GitPython
+      python "$GITHUB_ACTION_PATH"/rewriter.py --runtime-id "$runtimeId" "$workflowPath"
+    shell: bash
+    env:
+      runtimeId: ${{inputs.runtimeId}}
+      workflowPath: ${{inputs.workflowPath}}
