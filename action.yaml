@@ -13,7 +13,8 @@ runs:
   using: "composite"
   steps:
   - run: |
-      pip install cwl-utils GitPython
+      pip install -r "$GITHUB_ACTION_PATH"/requirements.txt
+      echo "Done with installing dependencies..."
       "$GITHUB_ACTION_PATH"/rewriter.py --runtime-id "$runtimeId" "$workflowPath"
     shell: bash
     env:
