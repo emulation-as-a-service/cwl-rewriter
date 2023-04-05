@@ -68,7 +68,7 @@ def rewrite(cwl_file, should_upload=False, runtime_id=""):
 
             for step in cwl_obj.steps:
                 print("Step:", step.run, step.run[cut_path_hack:])
-                is_rewritten = rewrite(Path(step.run[cut_path_hack:]), should_upload)
+                is_rewritten = rewrite(Path(step.run[cut_path_hack:]), should_upload, runtime_id)
 
                 # skip CWL files without DockerRequirement
                 if not is_rewritten:
@@ -282,6 +282,6 @@ if __name__ == '__main__':
             exit(1)
 
     if args.repo:
-        rewrite_from_repo(args.url_or_path, args.upload, args.output, args.runtime_id)
+        rewrite_from_repo(args.url_or_path, args.upload, args.output, runtime_id=args.runtime_id)
     else:
-        rewrite(Path(args.url_or_path), args.upload, args.runtime_id)
+        rewrite(Path(args.url_or_path), args.upload, runtime_id=args.runtime_id)

@@ -5,7 +5,7 @@ import os
 #EMIL_BASE_URL = "https://historic-builds.emulation.cloud/emil"
 #EMIL_BASE_URL = "http://localhost:8080/emil"
 # EMIL_BASE_URL = "https://b651fad4-55ac-4126-86f4-0298c23e8eb0.test.emulation.cloud/emil"
-EMIL_BASE_URL = os.environ.get("EMIL_BASE_URL") or "https://a19b53c8-2990-43ef-8ccd-6353c370d056.test.emulation.cloud/emil"
+EMIL_BASE_URL = os.environ.get("EMIL_BASE_URL") or "https://c6564661-6070-42cc-b6e0-ad1277a1ca7e.fr.bw-cloud-instance.org/emil"
 
 def poll_until_done(task_id):
     while True:
@@ -24,6 +24,7 @@ def poll_until_done(task_id):
 
 def import_image(dockerPull, runtime_id):
     print("Starting container Import for", dockerPull)
+    print("Provided Runtime ID:", runtime_id)
     if ":" in dockerPull:
         container, tag = dockerPull.split(":")
     else:
@@ -94,4 +95,4 @@ def import_image(dockerPull, runtime_id):
 
 
 if __name__ == '__main__':
-    import_image("frolvlad/alpine-bash:latest", "16f1b127-8436-4c74-9ae2-3582aaf0f042")
+    import_image("frolvlad/alpine-bash:latest", "2f49bdda-3f9d-47c6-84f3-611646b86828")
