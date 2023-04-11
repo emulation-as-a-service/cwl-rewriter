@@ -29,9 +29,8 @@ runs:
       git branch
       git checkout rewritten
       git checkout workflow-only
-#      TODO use head ref here
       echo from branch
-      echo ${{ github.head_ref}}
+      echo ${{github.head_ref}}
     shell: bash
 
   - run: |
