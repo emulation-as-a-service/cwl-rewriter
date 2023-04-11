@@ -45,8 +45,10 @@ runs:
       git checkout ${{inputs.branch}}
       git status
       git add  **/wrapped_*.cwl
+      git add ./wrapped_*.cwl
       git status
       git commit -a -m "Automated commit of rewritten files"
+      git push
 #     TODO add git branch name
     shell: bash
   - uses: actions/upload-artifact@v3
