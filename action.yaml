@@ -31,6 +31,12 @@ runs:
       EMIL_BASE_URL: ${{inputs.eaasBackendUrl}}
 
   - run: |
+      git status
+      git branch
+    shell: bash
+
+
+  - run: |
       git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
       git config --local user.name "github-actions[bot]"
       git checkout ${{inputs.branch}}
@@ -40,7 +46,6 @@ runs:
       git commit -a -m "Automated commit of rewritten files"
 #     TODO add git branch name
     shell: bash
-    if: ${{inputs.repoUrl}} != ''
   - uses: actions/upload-artifact@v3
     with:
       name: Preserved CWL workflows for ${{inputs.workflowPath}}
