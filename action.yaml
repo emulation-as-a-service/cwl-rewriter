@@ -48,10 +48,11 @@ runs:
       git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
       git config --local user.name "github-actions[bot]"
 
-      git checkout ${{inputs.branch}}
       git add  **/wrapped_*.cwl
       git add ./wrapped_*.cwl
-   
+      git stash
+      git checkout ${{inputs.branch}}
+      git stash apply
       git status
       git commit -a -m "Automated commit of rewritten files"
       git push
