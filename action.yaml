@@ -8,7 +8,15 @@ inputs:
   runtimeId:
     description: Container runtime ID in EaaS instance
     required: true
+  repoUrl:
+    description: Git URL of the original CWL Repo
+    required: false
+  branch:
+    description: Target Branch for the Rewriter Results
+    required: false
 
+name: CWL Rewriter
+description: Rewriter Action for CWL Files
 runs:
   using: "composite"
   steps:
@@ -21,6 +29,13 @@ runs:
       runtimeId: ${{inputs.runtimeId}}
       workflowPath: ${{inputs.workflowPath}}
       EMIL_BASE_URL: ${{inputs.eaasBackendUrl}}
+
+  - run: |
+      echo ${{inputs.repoUrl}}
+      echo ${{inputs.branch}}
+      git status
+    shell: bash
+    if: ${{inputs.repoUrl}} != ''
   - uses: actions/upload-artifact@v3
     with:
       name: Preserved CWL workflows for ${{inputs.workflowPath}}
