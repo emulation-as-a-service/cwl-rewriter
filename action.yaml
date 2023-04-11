@@ -53,11 +53,9 @@ runs:
       git stash
       git checkout ${{inputs.branch}}
       echo "Applying stash..."
-      git stash apply
+      git checkout stash -- .
       echo "Status after apply:"
       git status
-      echo "Adding again..."
-      git add .
       echo "Committing..."
       git commit -m "Automated commit of rewritten files"
       git push
