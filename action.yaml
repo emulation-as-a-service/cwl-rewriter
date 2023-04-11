@@ -52,9 +52,14 @@ runs:
       git add ./wrapped_*.cwl
       git stash
       git checkout ${{inputs.branch}}
+      echo "Applying stash..."
       git stash apply
       git status
-      git commit -a -m "Automated commit of rewritten files"
+      echo "Adding again..."
+      git add  **/wrapped_*.cwl
+      git add ./wrapped_*.cwl
+      echo "Committing..."
+      git commit -m "Automated commit of rewritten files"
       git push
 #     TODO add git branch name
     shell: bash
