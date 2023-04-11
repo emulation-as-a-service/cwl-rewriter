@@ -21,6 +21,15 @@ runs:
   using: "composite"
   steps:
   - run: |
+      git status
+      echo Branches:
+      git branch
+      git pull
+      echo Branches after pull:
+      git branch
+    shell: bash
+
+  - run: |
       pip install -r "$GITHUB_ACTION_PATH"/requirements.txt
       echo "Done with installing dependencies..."
       "$GITHUB_ACTION_PATH"/rewriter.py --runtime-id "$runtimeId" "$workflowPath"
@@ -29,12 +38,6 @@ runs:
       runtimeId: ${{inputs.runtimeId}}
       workflowPath: ${{inputs.workflowPath}}
       EMIL_BASE_URL: ${{inputs.eaasBackendUrl}}
-
-  - run: |
-      git status
-      git branch
-    shell: bash
-
 
   - run: |
       git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
