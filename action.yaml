@@ -52,6 +52,9 @@ runs:
       git checkout ${{inputs.branch}}
       echo ">>> Applying stash..."
       git checkout stash -- .
+      echo "Original Branch: ${GITHUB_HEAD_REF}\n" >> commit_info.txt
+      echo "Commit SHA: ${GITHUB_SHA}" >> commit_info.txt
+      git add commit_info.txt
       echo ">>> Status after apply:"
       git status
       echo ">>> Committing..."
