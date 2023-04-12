@@ -52,13 +52,15 @@ runs:
       git checkout ${{inputs.branch}}
       echo ">>> Applying stash..."
       git checkout stash -- .
-      echo "Original Branch: ${{ github.head_ref }} \n" >> commit_info.txt
+      echo "Original Branch: ${{ github.ref_name }}" >| commit_info.txt
       echo "Commit SHA: ${GITHUB_SHA}" >> commit_info.txt
+      echo -n "Triggered:" >> commit_info.txt 
+      date >> commit_info.txt
       git add commit_info.txt
       echo ">>> Status after apply:"
       git status
       echo ">>> Committing..."
-      git commit -m "Automated commit of rewritten files from branch ${{ github.head_ref }}, commit sha: ${{ github.sha }}."
+      git commit -m "Automated commit of rewritten files from branch ${{ github.ref_name }}, commit sha: ${{ github.sha }}."
       echo ">>> Pushing..."
       git push
     shell: bash
