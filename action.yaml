@@ -43,17 +43,20 @@ runs:
       git status
       git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
       git config --local user.name "github-actions[bot]"
-
+      echo ">>> Adding files..."
       git add  **/wrapped_*.cwl
       git add ./wrapped_*.cwl
+      echo ">>> Stashing..."
       git stash
+      echo ">>> Checking out ${{inputs.branch}}"
       git checkout ${{inputs.branch}}
-      echo "Applying stash..."
+      echo ">>> Applying stash..."
       git checkout stash -- .
-      echo "Status after apply:"
+      echo ">>> Status after apply:"
       git status
-      echo "Committing..."
+      echo ">>> Committing..."
       git commit -m 'Automated commit of rewritten files from branch "${GITHUB_HEAD_REF}", commit sha: "${GITHUB_SHA}".'
+      echo ">>> Pushing..."
       git push
     shell: bash
   - uses: actions/upload-artifact@v3
