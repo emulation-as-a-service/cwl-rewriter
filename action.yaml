@@ -27,10 +27,6 @@ runs:
       git pull
       echo Branches after pull:
       git branch
-      git checkout rewritten
-      git checkout workflow-only
-      echo from branch
-      echo ${{github.head_ref}}
     shell: bash
 
   - run: |
@@ -57,9 +53,8 @@ runs:
       echo "Status after apply:"
       git status
       echo "Committing..."
-      git commit -m "Automated commit of rewritten files"
+      git commit -m "Automated commit of rewritten files from branch ${GITHUB_HEAD_REF}"
       git push
-#     TODO add git branch name
     shell: bash
   - uses: actions/upload-artifact@v3
     with:
